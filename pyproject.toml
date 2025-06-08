@@ -1,7 +1,7 @@
 [project]
 name = "loyverse-api"
 version = "0.1.0"
-description = "Add your description here"
+description = "Wrapper for interacting with the Loyverse API"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

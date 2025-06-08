@@ -10,7 +10,7 @@ git clone https://github.com/dagsdags212/loyverse-api.git
 cd loyvese-api
 ```
 
-Install dependencies:
+Install package and dependencies:
 ```sh
 pip install .
 ```
