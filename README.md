@@ -1,6 +1,26 @@
 # Loyverse API
 
-Wrapper classes for interacting with Loyverse endpoints.
+Python wrapper for interacting with Loyverse API endpoints.
+
+## Setup
+
+Clone this repository to your local machine:
+```sh
+git clone https://github.com/dagsdags212/loyverse-api.git
+cd loyvese-api
+```
+
+Install dependencies:
+```sh
+pip install .
+```
+
+Create a `.env` file and import your Loyverse API key. It should be stored under the `LOYVERSE_API_KEY` variable.
+
+```
+// .env
+LOYVERSE_API_KEY=your-api-key-here
+```
 
 ## Endpoints
 
