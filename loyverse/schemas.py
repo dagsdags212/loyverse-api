@@ -1,9 +1,8 @@
 from datetime import datetime, timezone
-from typing import Optional, List, Any
+from typing import Optional, List, Any, Literal
 from uuid import UUID, uuid4
 from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr, NonNegativeInt, NonNegativeFloat, JsonValue
-from src.api import Loyverse
 
 
 class Base(BaseModel):
@@ -121,3 +120,92 @@ class Receipt(BaseModel):
             raise ValueError("receipts cannot be created in the future")
 
         return dt
+
+
+class PaymentType(Base):
+    name: str
+    type: str
+    stores: Optional[List[UUID]]
+
+
+class PosDevice(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    stored_id: Optional[UUID]
+    activated: bool
+    deleted_at: Optional[datetime]
+
+
+class Discount(Base):
+    type: str
+    name: str
+    discount_amount: NonNegativeFloat
+    discount_percent: NonNegativeFloat = Field(ge=0.0, le=100.0)
+    stores: List[UUID]
+    restricted_access: bool = Field(default=False)
+
+
+class Category(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    name: str
+    color: str
+    created_at: datetime
+    deleted_at: Optional[datetime]
+
+
+### Schema dependencies for `Merchant`
+
+
+class Currency(BaseModel):
+    code: str = Field(max_length=3, min_length=3)
+    decimal_places: int = Field(default=2)
+
+
+class Merchant(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    business_name: str
+    email: Optional[EmailStr]
+    country: str
+    currency: Currency
+    created_at: datetime
+
+
+### Schema dependencies for `Shift`
+
+
+class CashMovement(BaseModel):
+    type: Literal["PAY_IN", "PAY_OUT"]
+    money_amount: NonNegativeFloat
+    comment: Optional[str]
+    employee_id: UUID
+    created_at: datetime
+
+
+class Payment:
+    payment_type_id: UUID
+    money_amount: NonNegativeFloat
+
+
+class Shift(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    store_id: UUID
+    pos_device_id: UUID
+    opened_at: datetime
+    closed_at: datetime
+    opened_by_employee: UUID
+    closed_by_employee: UUID
+    starting_cash: Optional[NonNegativeFloat]
+    cash_payments: NonNegativeFloat
+    cash_refunds: NonNegativeFloat = 0.0
+    paid_in: Optional[NonNegativeFloat]
+    paid_out: Optional[NonNegativeFloat]
+    expected_cash: NonNegativeFloat
+    actual_cash: NonNegativeFloat
+    gross_sales: NonNegativeFloat
+    refunds: Optional[NonNegativeFloat]
+    discounts: Optional[NonNegativeFloat]
+    net_sales: Optional[NonNegativeFloat]
+    tip: Optional[NonNegativeFloat] = 0.0
+    surcharge: Optional[NonNegativeFloat] = 0.0
+    payments: List[Payment]
+    cash_movements: List[CashMovement]
