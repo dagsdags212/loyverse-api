@@ -1,7 +1,8 @@
 from datetime import datetime, timezone
 from typing import Optional, List, Any, Literal
 from uuid import UUID, uuid4
-from pydantic import BaseModel, Field, field_validator
+from sqlmodel import SQLModel, Field
+from pydantic import BaseModel, field_validator
 from pydantic import EmailStr, NonNegativeInt, NonNegativeFloat, JsonValue
 
 
@@ -12,15 +13,30 @@ class Base(BaseModel):
     deleted_at: Optional[datetime]
 
 
-class Employee(Base):
+class Employee(SQLModel, table=True):
+    __tablename__ = "employees"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str
     email: Optional[EmailStr]
     phone_number: Optional[str]
-    stores: Optional[List[UUID]]
+    stores: Optional[str]
     is_owner: bool
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
+
+    @field_validator("stores", mode="before")
+    @classmethod
+    def join_store_ids(cls, values: list[str]) -> str:
+        """Concatenates stored ids using a comma delimiter"""
+        return ",".join(values)
 
 
-class Customer(Base):
+class Customer(SQLModel, table=True):
+    __tablename__ = "customers"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: Optional[str]
     email: Optional[EmailStr]
     phone_number: Optional[str]
@@ -39,11 +55,13 @@ class Customer(Base):
     permanent_deletion_at: Optional[datetime]
 
 
-class Variant(BaseModel):
-    variant_id: UUID = Field(default_factory=uuid4)
+class Variant(SQLModel, table=True):
+    __tablename__ = "variants"
+
+    variant_id: UUID = Field(default_factory=uuid4, primary_key=True)
     item_id: UUID
     sku: str
-    reference_variant_id: Optional[UUID]
+    reference_variant_id: Optional[UUID] = Field(foreign_key="Variant.variant_id")
     option1_value: Optional[str]
     option2_value: Optional[str]
     option3_value: Optional[str]
@@ -57,7 +75,10 @@ class Variant(BaseModel):
     deleted_at: Optional[datetime]
 
 
-class Item(Base):
+class Item(SQLModel, table=True):
+    __tablename__ = "items"
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
     handle: str
     reference_id: Optional[UUID]
     item_name: str
@@ -78,6 +99,9 @@ class Item(Base):
     option2_name: Optional[str]
     option3_name: Optional[str]
     variants: List[Variant]
+    created_at: datetime
+    updated_at: datetime
+    deleted_at: Optional[datetime]
 
 
 class Receipt(BaseModel):
@@ -106,20 +130,6 @@ class Receipt(BaseModel):
     surcharge: Optional[NonNegativeFloat]
     line_items: List[JsonValue]
     payments: List[JsonValue]
-
-    @field_validator("created_at", "updated_at", mode="after")
-    @classmethod
-    def validate_datetimes(cls, dt: datetime):
-        # Prevent input of dates preceeding store opening
-        opening = datetime(2025, 1, 15, tzinfo=timezone.utc)
-        if (dt - opening).days < 0:
-            raise ValueError("date of receipt creation cannot preceed 2025-01-15")
-
-        # Prevent input of future dates
-        if (datetime.now(timezone.utc) - dt).days <= 0:
-            raise ValueError("receipts cannot be created in the future")
-
-        return dt
 
 
 class PaymentType(Base):
@@ -181,9 +191,9 @@ class CashMovement(BaseModel):
     created_at: datetime
 
 
-class Payment:
-    payment_type_id: UUID
-    money_amount: NonNegativeFloat
+# class Payment:
+#     payment_type_id: UUID
+#     money_amount: NonNegativeFloat
 
 
 class Shift(BaseModel):
@@ -207,5 +217,5 @@ class Shift(BaseModel):
     net_sales: Optional[NonNegativeFloat]
     tip: Optional[NonNegativeFloat] = 0.0
     surcharge: Optional[NonNegativeFloat] = 0.0
-    payments: List[Payment]
+    # payments: List[Payment]
     cash_movements: List[CashMovement]
