@@ -5,7 +5,7 @@ from pydantic import field_validator
 from pydantic import EmailStr, NonNegativeInt, NonNegativeFloat
 from sqlmodel import SQLModel, Field, create_engine, Session
 from sqlmodel import Relationship, JSON
-from api import Loyverse
+from loyverse.api import Loyverse
 
 
 class Employee(SQLModel, table=True):
