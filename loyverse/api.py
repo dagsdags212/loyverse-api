@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 import httpx
 from loguru import logger
@@ -167,7 +167,14 @@ class ReceiptsEndpoint(LoyverseEndpoint):
         super().__init__("receipts")
 
     def from_receipt_number(self, receipt_number: str) -> dict[str, any]:
-        """Retrieve the receipt information for the given receipt number"""
+        """Retrieve receipt information for the given receipt number
+
+        Args:
+            receipt_number (str): a 6-character receipt number
+
+        Returns:
+            JSON-formatted dict containing data for a single receipt
+        """
         response = httpx.get(
             f"{self.url}?receipt_number={receipt_number}", headers=self.headers
         )
@@ -175,7 +182,14 @@ class ReceiptsEndpoint(LoyverseEndpoint):
         return response.json()
 
     def from_receipt_numbers(self, *receipt_numbers: str) -> dict[str, any]:
-        """Retrieve the receipt information for the given receipt numbers"""
+        """Retrieve receipt information for the given receipt numbers
+
+        Args:
+            receipt_numbers (str): at least one receipt 6-character receipt number
+
+        Returns:
+            JSON-formatted dict containing data for a list of receipts
+        """
         if len(receipt_numbers) == 0:
             logger.info("No receipt numbers provided")
             return []
@@ -191,7 +205,14 @@ class ReceiptsEndpoint(LoyverseEndpoint):
         return response.json()
 
     def after_receipt_number(self, receipt_number: str) -> dict[str, any]:
-        """Retrieve the receipt information following the given receipt number"""
+        """Retrieve the receipt information succeeding the given receipt number
+
+        Args:
+            receipt_number (str): a 6-character receipt number
+
+        Returns:
+            JSON-formatted dict containing filtered receipt data
+        """
         response = httpx.get(
             f"{self.url}?since_receipt_number={receipt_number}&limit=1",
             headers=self.headers,
@@ -200,9 +221,84 @@ class ReceiptsEndpoint(LoyverseEndpoint):
         return response.json()
 
     def before_receipt_number(self, receipt_number: str) -> dict[str, any]:
-        """Retrieve the receipt information preceding the given receipt number"""
+        """Retrieve the receipt information preceding the given receipt number
+
+        Args:
+            receipt_number (str): a 6-character receipt number
+
+        Returns:
+            JSON-formatted dict containing filtered receipt data
+        """
         response = httpx.get(
             f"{self.url}?before_receipt_number={receipt_number}&limit=1",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def most_recent(self, n: int = 10) -> dict[str, any]:
+        """Retrieve the `n` most recent receipts
+
+        Args:
+            n (int): number of records to return
+
+        Returns:
+            JSON-formatted dict containing `n` receipts
+        """
+        response = httpx.get(
+            f"{self.url}?limit={n}",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def between(self, start: datetime, end: datetime) -> dict[str, any]:
+        """Retrieve all receipts issued within a date range, demarcated by `start` and `end`
+
+        Args:
+            start (datetime): start date, inclusive
+            end   (datetime): end date, inclusive
+
+        Returns:
+            JSON-formatted dict containing filtered receipt data
+        """
+        dt_format = "%Y-%m-%dT%H:%M:%S.000Z"
+        start_str = start.strftime(dt_format)
+        end_str = end.strftime(dt_format)
+        response = httpx.get(
+            f"{self.url}?created_at_min={start_str}&created_at_max={end_str}",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def today(self) -> dict[str, any]:
+        """Retrieve all receipts created today
+
+        Returns:
+            JSON-formatted dict containing filtered receipt data
+        """
+        today = datetime.now()
+        today_str = today.strftime("%Y-%m-%dT00:00:00.000Z")
+        response = httpx.get(
+            f"{self.url}?created_at_min={today_str}",
+            headers=self.headers,
+        )
+        response.raise_for_status()
+        return response.json()
+
+    def yesterday(self) -> dict[str, any]:
+        """Retrieve all receipts created yesterday
+
+        Returns:
+            JSON-formatted dict containing filtered receipt data
+        """
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        yesterday_start = yesterday.strftime("%Y-%m-%dT00:00:00.000Z")
+        yesterday_end = yesterday.strftime("%Y-%m-%dT23:59:59.999Z")
+        response = httpx.get(
+            f"{self.url}?created_at_min={yesterday_start}&created_at_max={yesterday_end}",
             headers=self.headers,
         )
         response.raise_for_status()
