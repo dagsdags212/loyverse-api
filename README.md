@@ -12,6 +12,14 @@ cd loyvese-api
 
 Install package and dependencies:
 ```sh
+# using Makefile (recommended)
+make init
+
+# manually invoking uv
+uv venv
+uv sync
+
+# using pip
 pip install .
 ```
 
@@ -72,7 +80,7 @@ c = Loyverse.customers.created_within(start_date, end_date)
 
 ## Schemas
 
-Data schemas are provded in the `loyverse.schemas` module. This makes data processing easier for the user. It also provide a field validators to ensure data integrity.
+Data schemas are implemented using [Pydantic](https://docs.pydantic.dev/latest/) and are provided in the `loyverse.schemas` module. This makes data processing easier for the user. It also provides field validators to ensure data integrity.
 
 Currently available schemas include:
 
@@ -81,8 +89,14 @@ Currently available schemas include:
 - Variant
 - Item
 - Receipt
+- PaymentType
+- PosDevice
+- Discount
+- Category
+- Merchant
+- Shift
 
-As an example, let us fetch our employee list and load it as a data schema.
+As an example, let us fetch our employee list and load it into a data schema.
 
 ```python
 # Fetch employee data in JSON format
@@ -94,4 +108,15 @@ employees = [Employee.model_validate(e) for e in employee_data]
 # Access object attributes
 for e in employees:
     print(f"Please contact {e.name} thru his/her phone number at {e.phone_number}")
+```
+
+## Database
+
+Core schemas can be converted into database tables with the help of [SQLModel](https://sqlmodel.tiangolo.com/). Use the `seed_db` function to save all your data from Loyverse into a local `duckdb` database.
+
+```python
+from loyverse.database import seed_db
+
+db_path = 'loyverse.db'
+seed_db(db_path)
 ```
