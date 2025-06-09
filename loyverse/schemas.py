@@ -12,16 +12,12 @@ class Base(BaseModel):
     deleted_at: Optional[datetime]
 
 
-class Employee(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+class Employee(Base):
     name: str
     email: Optional[EmailStr]
     phone_number: Optional[str]
     stores: List[UUID]
     is_owner: bool
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime]
 
 class Customer(BaseModel):
     id: UUID = Field(default_factory=uuid4)
@@ -61,8 +57,7 @@ class Variant(BaseModel):
     deleted_at: Optional[datetime]
 
 
-class Item(BaseModel):
-    id: UUID = Field(default_factory=uuid4)
+class Item(Base):
     handle: str
     reference_id: Optional[UUID]
     item_name: str
@@ -83,9 +78,6 @@ class Item(BaseModel):
     option3_name: Optional[str]
     variants: List[Variant]
     components: JsonValue
-    created_at: datetime
-    updated_at: datetime
-    deleted_at: Optional[datetime]
 
     @field_validator("components", mode="before")
     @classmethod
