@@ -4,7 +4,7 @@ from typing import Optional, List
 from pydantic import field_validator
 from pydantic import EmailStr, NonNegativeInt, NonNegativeFloat
 from sqlmodel import SQLModel, Field, create_engine, Session
-from sqlmodel import JSON
+from sqlmodel import Relationship, JSON
 from api import Loyverse
 
 
@@ -47,6 +47,7 @@ class Customer(SQLModel, table=True):
     total_spent: NonNegativeFloat = 0.0
     total_points: NonNegativeFloat = 0.0
     permanent_deletion_at: Optional[datetime]
+    receipts: List["Receipt"] = Relationship(back_populates="customer")
 
 class Variant(SQLModel, table=True):
     __tablename__ = 'variants'
@@ -106,6 +107,47 @@ class Item(SQLModel, table=True):
         return ','.join(map(lambda x: x.get('variant_id'), variants))
 
 
+class Receipt(SQLModel, table=True):
+    __tablename__ = 'receipts'
+    
+    receipt_number: str = Field(primary_key=True)
+    note: Optional[str]
+    receipt_type: str
+    refund_for: Optional[str]
+    order: Optional[str]
+    created_at: datetime
+    updated_at: datetime
+    cancelled_at: Optional[datetime]
+    source: Optional[str]
+    total_money: NonNegativeFloat
+    total_tax: Optional[NonNegativeFloat]
+    total_discount: NonNegativeFloat = 0.0
+    points_earned: Optional[NonNegativeFloat]
+    points_deducted: Optional[NonNegativeFloat] = 0.0
+    points_balance: Optional[NonNegativeFloat]
+    customer_id: Optional[UUID] = Field(foreign_key='customers.id')
+    employee_id: Optional[UUID] = Field(foreign_key='employees.id')
+    store_id: Optional[UUID] # Foreign key 
+    pos_device_id: Optional[UUID] # Foreign key
+    tip: Optional[NonNegativeFloat] = 0.0
+    surcharge: Optional[NonNegativeFloat]
+    line_items: List[str] = Field(default_factory=list, sa_type=JSON)
+    payments: str
+    customer: Optional[Customer] = Relationship(back_populates='receipts')
+
+    @field_validator('payments', mode='before')
+    @classmethod
+    def extract_payment_name(cls, value) -> str:
+        return value[0].get('name')
+
+    @field_validator('line_items', mode='before')
+    @classmethod
+    def extract_item_ids(cls, value) -> list[str]:
+        ids = map(lambda x: x.get('item_id'), value)
+        return list(ids)
+        
+
+
 class DatabaseSeeder:
     @classmethod
     def employees(cls, engine):
@@ -143,17 +185,29 @@ class DatabaseSeeder:
                 session.add(v)
             session.commit()
 
-def main() -> None:
-    db_name = "loyverse.db"
-    db_url = f"duckdb:///:memory:"
+    @classmethod
+    def receipts(cls, engine):
+        data = Loyverse.receipts.get()
+        receipts = [Receipt.model_validate(r) for r in data]
+        with Session(engine) as session:
+            for r in receipts:
+                session.add(r)
+            session.commit()
+
+def seed_db(db_name) -> None:
+    if db_name:
+        db_url = f"duckdb:///{db_name}"
+    else:
+        db_url = 'duckdb:///:memory:'
     engine = create_engine(db_url, echo=True)
 
     SQLModel.metadata.create_all(engine)
 
-    # DatabaseSeeder.employees(engine)
-    # DatabaseSeeder.customers(engine)
-    # DatabaseSeeder.variants(engine)
+    DatabaseSeeder.employees(engine)
+    DatabaseSeeder.customers(engine)
+    DatabaseSeeder.variants(engine)
     DatabaseSeeder.items(engine)
+    DatabaseSeeder.receipts(engine)
 
 if __name__ == "__main__":
-    main()
+    seed_db('loyverse.db')

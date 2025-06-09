@@ -1,8 +1,7 @@
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional, List, Any, Literal
 from uuid import UUID, uuid4
-from sqlmodel import SQLModel, Field
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic import EmailStr, NonNegativeInt, NonNegativeFloat, JsonValue
 
 
@@ -13,30 +12,19 @@ class Base(BaseModel):
     deleted_at: Optional[datetime]
 
 
-class Employee(SQLModel, table=True):
-    __tablename__ = "employees"
-
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class Employee(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
     name: str
     email: Optional[EmailStr]
     phone_number: Optional[str]
-    stores: Optional[str]
+    stores: List[UUID]
     is_owner: bool
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
 
-    @field_validator("stores", mode="before")
-    @classmethod
-    def join_store_ids(cls, values: list[str]) -> str:
-        """Concatenates stored ids using a comma delimiter"""
-        return ",".join(values)
-
-
-class Customer(SQLModel, table=True):
-    __tablename__ = "customers"
-
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class Customer(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
     name: Optional[str]
     email: Optional[EmailStr]
     phone_number: Optional[str]
@@ -55,13 +43,11 @@ class Customer(SQLModel, table=True):
     permanent_deletion_at: Optional[datetime]
 
 
-class Variant(SQLModel, table=True):
-    __tablename__ = "variants"
-
-    variant_id: UUID = Field(default_factory=uuid4, primary_key=True)
+class Variant(BaseModel):
+    variant_id: UUID = Field(default_factory=uuid4)
     item_id: UUID
     sku: str
-    reference_variant_id: Optional[UUID] = Field(foreign_key="Variant.variant_id")
+    reference_variant_id: Optional[UUID]
     option1_value: Optional[str]
     option2_value: Optional[str]
     option3_value: Optional[str]
@@ -75,10 +61,8 @@ class Variant(SQLModel, table=True):
     deleted_at: Optional[datetime]
 
 
-class Item(SQLModel, table=True):
-    __tablename__ = "items"
-
-    id: UUID = Field(default_factory=uuid4, primary_key=True)
+class Item(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
     handle: str
     reference_id: Optional[UUID]
     item_name: str
@@ -88,9 +72,8 @@ class Item(SQLModel, table=True):
     is_composite: bool
     use_production: bool
     category_id: Optional[UUID]
-    components: List[Any]
     primary_supplier_id: Optional[UUID]
-    tax_ids: Optional[List[UUID]]
+    tax_ids: List[str]
     modifier_ids: Optional[List[UUID]]
     form: Optional[str]
     color: Optional[str]
@@ -99,13 +82,24 @@ class Item(SQLModel, table=True):
     option2_name: Optional[str]
     option3_name: Optional[str]
     variants: List[Variant]
+    components: JsonValue
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime]
 
+    @field_validator("components", mode="before")
+    @classmethod
+    def flatten_components(cls, value) -> str:
+        return value[0]
+
+    @field_validator("tax_ids", mode='before')
+    @classmethod
+    def concat_tax_ids(cls, value) -> str:
+        return ','.join(value)
+
 
 class Receipt(BaseModel):
-    receipt_number: Optional[str]
+    receipt_number: str
     note: Optional[str]
     receipt_type: Optional[str]
     refund_for: Optional[str]
@@ -191,9 +185,9 @@ class CashMovement(BaseModel):
     created_at: datetime
 
 
-# class Payment:
-#     payment_type_id: UUID
-#     money_amount: NonNegativeFloat
+class Payment:
+    payment_type_id: UUID
+    money_amount: NonNegativeFloat
 
 
 class Shift(BaseModel):
@@ -217,5 +211,8 @@ class Shift(BaseModel):
     net_sales: Optional[NonNegativeFloat]
     tip: Optional[NonNegativeFloat] = 0.0
     surcharge: Optional[NonNegativeFloat] = 0.0
-    # payments: List[Payment]
+    payments: List[Payment]
     cash_movements: List[CashMovement]
+
+    class Config:
+        arbitrary_types_allowed = True
